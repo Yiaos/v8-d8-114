@@ -1,0 +1,35 @@
+name: build-d8-114
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 160
+    steps:
+      - uses: actions/checkout@v4
+      - name: depot_tools
+        run: |
+          git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git
+          echo "$GITHUB_WORKSPACE/depot_tools" >> $GITHUB_PATH
+      - name: fetch v8
+        run: |
+          export PATH=$GITHUB_WORKSPACE/depot_tools:$PATH
+          fetch --no-history v8
+          cd v8
+          git checkout tags/11.4.183.23
+          cd ..
+          gclient sync -D --no-history
+      - name: gn gen
+        run: |
+          export PATH=$GITHUB_WORKSPACE/depot_tools:$PATH
+          cd v8
+          tools/dev/v8gen.py x64.release -- v8_enable_object_print=true is_component_build=false symbol_level=1
+      - name: ninja d8
+        run: |
+          export PATH=$GITHUB_WORKSPACE/depot_tools:$PATH
+          cd v8
+          ninja -C out.gn/x64.release d8
+      - uses: actions/upload-artifact@v4
+        with:
+          name: d8-114-op
+          path: v8/out.gn/x64.release/d8
+          retention-days: 30
