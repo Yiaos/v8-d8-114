@@ -16,7 +16,8 @@ jobs:
           export PATH=$GITHUB_WORKSPACE/depot_tools:$PATH
           fetch --no-history v8
           cd v8
-          git checkout tags/11.4.183.23
+          git fetch --depth 1 origin refs/tags/11.4.183.23
+          git checkout FETCH_HEAD
           cd ..
           gclient sync -D --no-history
       - name: gn gen
