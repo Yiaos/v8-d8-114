@@ -1,0 +1,11 @@
+name: d8 build
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 160
+    steps:
+      - run: echo probe
