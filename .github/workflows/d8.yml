@@ -21,42 +21,6 @@ jobs:
           cd ..
           gclient sync -D --no-history
       - name: patch walk trace
-        run: |
-          cd v8
-          python3 - <<'PYEOF'
-          p='src/execution/isolate.cc'
-          s=open(p).read()
-          old='''    // Check that the {promise} is not settled.
-    if (promise->status() != Promise::kPending) return;'''
-          new='''    PrintF("[WALK] promise=%%p status_off_val=%%d map=%%p\n", (void*)(*promise), 0, (void*)promise->map());
-    // Check that the {promise} is not settled.
-    if (promise->status() != Promise::kPending) return;'''
-          assert old in s
-          s=s.replace(old,new,1)
-          old2='''      Handle<PromiseCapability> capability(
-          PromiseCapability::cast(context->get(index)), isolate);
-      if (!capability->promise().IsJSPromise()) return;'''
-          new2='''      Handle<PromiseCapability> capability(
-          PromiseCapability::cast(context->get(index)), isolate);
-      PrintF("[WALK] all-branch context=%%p capability=%%p promise_val=%%p\n", (void*)(*context), (void*)(*capability), (void*)(capability->promise().ptr()));
-      if (!capability->promise().IsJSPromise()) return;'''
-          assert old2 in s
-          s=s.replace(old2,new2,1)
-          old3='''      Handle<Context> context(
-          JSFunction::cast(reaction->fulfill_handler()).context(), isolate);
-      Handle<JSGeneratorObject> generator_object(
-          JSGeneratorObject::cast(context->extension()), isolate);'''
-          new3='''      Handle<Context> context(
-          JSFunction::cast(reaction->fulfill_handler()).context(), isolate);
-      PrintF("[WALK] await-branch handler_ctx=%%p\n", (void*)(*context));
-      Handle<JSGeneratorObject> generator_object(
-          JSGeneratorObject::cast(context->extension()), isolate);'''
-          assert old3 in s
-          s=s.replace(old3,new3,1)
-          open(p,'w').write(s)
-          print('patched isolate.cc')
-          PYEOF
-      - name: patch walk trace
         run: python3 patch-walk.py
       - name: gn gen
         run: |
@@ -68,17 +32,10 @@ jobs:
           export PATH=$GITHUB_WORKSPACE/depot_tools:$PATH
           cd v8
           ninja -C out.gn/x64.release d8
-      - name: gdb run exploit
+      - name: run exploit trace
         run: |
-          sudo apt-get -qq update && sudo apt-get -qq install -y gdb
           cd v8
-          gdb --batch -ex 'handle SIGSEGV stop nopass' \
-              -ex 'run --random-seed=1 --allow-natives-syntax /home/runner/work/v8-d8-114/v8-d8-114/dbg/expC-plain.js' \
-              -ex 'bt 20' \
-              -ex 'info registers' \
-              --args ./out.gn/x64.release/d8 2>&1 | tee /tmp/gdb.txt || true
-          echo '---BT---'
-          grep -E '^#' /tmp/gdb.txt | head -25 || true
+          ./out.gn/x64.release/d8 --random-seed=1 --allow-natives-syntax /home/runner/work/v8-d8-114/v8-d8-114/dbg/expC-plain.js 2>&1 | grep -E "WALK|signal|frames" | head -40 || true
       - uses: actions/upload-artifact@v4
         with:
           name: d8-114-op
