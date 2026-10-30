@@ -32,6 +32,7 @@ jobs:
           ninja -C out.gn/x64.release d8
       - name: gdb run exploit
         run: |
+          sudo apt-get -qq update && sudo apt-get -qq install -y gdb
           cd v8
           gdb --batch -ex 'handle SIGSEGV stop nopass' \
               -ex 'run --random-seed=1 --allow-natives-syntax /home/runner/work/v8-d8-114/v8-d8-114/dbg/expC-plain.js' \
