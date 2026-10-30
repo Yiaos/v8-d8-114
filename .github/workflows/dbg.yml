@@ -1,0 +1,43 @@
+name: d8 gdb debug
+on: workflow_dispatch
+jobs:
+  dbg:
+    runs-on: ubuntu-latest
+    timeout-minutes: 160
+    steps:
+      - uses: actions/checkout@v4
+      - name: install gdb
+        run: sudo apt-get -qq update && sudo apt-get -qq install -y gdb
+      - name: depot_tools
+        run: |
+          git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git
+          echo "$GITHUB_WORKSPACE/depot_tools" >> $GITHUB_PATH
+      - name: fetch v8
+        run: |
+          export PATH=$GITHUB_WORKSPACE/depot_tools:$PATH
+          fetch --no-history v8
+          cd v8 && git fetch --depth 1 origin refs/tags/11.4.183.23 && git checkout FETCH_HEAD && cd ..
+          gclient sync -D --no-history
+      - name: gn gen
+        run: |
+          export PATH=$GITHUB_WORKSPACE/depot_tools:$PATH
+          cd v8 && tools/dev/v8gen.py x64.release -- v8_enable_object_print=true is_component_build=false symbol_level=2
+      - name: ninja d8
+        run: |
+          export PATH=$GITHUB_WORKSPACE/depot_tools:$PATH
+          cd v8 && ninja -C out.gn/x64.release d8
+      - name: run exploit under gdb
+        run: |
+          cd v8
+          gdb --batch -ex 'handle SIGSEGV stop nopass' \
+              -ex 'run --random-seed=1 --allow-natives-syntax /home/runner/work/v8-d8-114/v8-d8-114/dbg/expC-plain.js' \
+              -ex 'bt 20' -ex 'info registers rax rbx rcx rdx rsi rdi r14' \
+              -ex 'x/8i $pc-16' \
+              --args ./out.gn/x64.release/d8 2>&1 | tee /tmp/gdb.txt || true
+          grep -E '^#|SIGSEGV|rax|rbx|rcx|rdx|rsi|rdi|r14' /tmp/gdb.txt | head -60
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gdb-out
+          path: /tmp/gdb.txt
+          retention-days: 7
+          if-no-files-found: ignore
