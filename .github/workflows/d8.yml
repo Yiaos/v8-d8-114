@@ -20,6 +20,42 @@ jobs:
           git checkout FETCH_HEAD
           cd ..
           gclient sync -D --no-history
+      - name: patch walk trace
+        run: |
+          cd v8
+          python3 - <<'PYEOF'
+          p='src/execution/isolate.cc'
+          s=open(p).read()
+          old='''    // Check that the {promise} is not settled.
+    if (promise->status() != Promise::kPending) return;'''
+          new='''    PrintF("[WALK] promise=%%p status_off_val=%%d map=%%p\n", (void*)(*promise), 0, (void*)promise->map());
+    // Check that the {promise} is not settled.
+    if (promise->status() != Promise::kPending) return;'''
+          assert old in s
+          s=s.replace(old,new,1)
+          old2='''      Handle<PromiseCapability> capability(
+          PromiseCapability::cast(context->get(index)), isolate);
+      if (!capability->promise().IsJSPromise()) return;'''
+          new2='''      Handle<PromiseCapability> capability(
+          PromiseCapability::cast(context->get(index)), isolate);
+      PrintF("[WALK] all-branch context=%%p capability=%%p promise_val=%%p\n", (void*)(*context), (void*)(*capability), (void*)(capability->promise().ptr()));
+      if (!capability->promise().IsJSPromise()) return;'''
+          assert old2 in s
+          s=s.replace(old2,new2,1)
+          old3='''      Handle<Context> context(
+          JSFunction::cast(reaction->fulfill_handler()).context(), isolate);
+      Handle<JSGeneratorObject> generator_object(
+          JSGeneratorObject::cast(context->extension()), isolate);'''
+          new3='''      Handle<Context> context(
+          JSFunction::cast(reaction->fulfill_handler()).context(), isolate);
+      PrintF("[WALK] await-branch handler_ctx=%%p\n", (void*)(*context));
+      Handle<JSGeneratorObject> generator_object(
+          JSGeneratorObject::cast(context->extension()), isolate);'''
+          assert old3 in s
+          s=s.replace(old3,new3,1)
+          open(p,'w').write(s)
+          print('patched isolate.cc')
+          PYEOF
       - name: gn gen
         run: |
           export PATH=$GITHUB_WORKSPACE/depot_tools:$PATH
