@@ -30,6 +30,16 @@ jobs:
           export PATH=$GITHUB_WORKSPACE/depot_tools:$PATH
           cd v8
           ninja -C out.gn/x64.release d8
+      - name: gdb run exploit
+        run: |
+          cd v8
+          gdb --batch -ex 'handle SIGSEGV stop nopass' \
+              -ex 'run --random-seed=1 --allow-natives-syntax /home/runner/work/v8-d8-114/v8-d8-114/dbg/expC-plain.js' \
+              -ex 'bt 20' \
+              -ex 'info registers' \
+              --args ./out.gn/x64.release/d8 2>&1 | tee /tmp/gdb.txt || true
+          echo '---BT---'
+          grep -E '^#' /tmp/gdb.txt | head -25 || true
       - uses: actions/upload-artifact@v4
         with:
           name: d8-114-op
