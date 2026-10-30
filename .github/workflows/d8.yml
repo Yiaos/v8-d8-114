@@ -35,7 +35,7 @@ jobs:
       - name: run exploit trace
         run: |
           cd v8
-          ./out.gn/x64.release/d8 --random-seed=1 --allow-natives-syntax /home/runner/work/v8-d8-114/v8-d8-114/dbg/expC-plain.js 2>&1 | grep -E "WALK|signal|frames" | head -40 || true
+          stdbuf -o0 -e0 ./out.gn/x64.release/d8 --random-seed=1 --allow-natives-syntax /home/runner/work/v8-d8-114/v8-d8-114/dbg/expC-plain.js 2>&1 | grep -E "WALK|signal|frames" | head -40 || true
       - uses: actions/upload-artifact@v4
         with:
           name: d8-114-op
