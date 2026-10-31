@@ -44,7 +44,9 @@ jobs:
               -ex 'run --random-seed=1 --allow-natives-syntax /home/runner/work/v8-d8-114/v8-d8-114/dbg/expC-plain.js' \
               -ex 'bt 8' \
               -ex 'x/10i $pc-20' \
-              -ex 'p/x $rcx' -ex 'p/x $rax' -ex 'p/x $r14' \
+              -ex 'p/x $rcx' -ex 'p/x $rax' -ex 'p/x $r14' -ex 'p/x $rsi' \
+              -ex 'x/8wx 0x3fa900183bf0' \
+              -ex 'x/4wx $rsi-8' \
               --args ./out.gn/x64.release/d8 2>&1 | grep -E '^#|=>|^\$|SIGSEGV' | head -30 || true
       - uses: actions/upload-artifact@v4
         with:
