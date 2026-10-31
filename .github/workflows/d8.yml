@@ -35,7 +35,17 @@ jobs:
       - name: run exploit trace
         run: |
           cd v8
-          stdbuf -o0 -e0 ./out.gn/x64.release/d8 --random-seed=1 --allow-natives-syntax /home/runner/work/v8-d8-114/v8-d8-114/dbg/expC-plain.js 2>&1 | grep -E "WALK|signal|frames" | head -40 || true
+          echo '=== plain run (all output) ==='
+          stdbuf -o0 -e0 ./out.gn/x64.release/d8 --random-seed=1 --allow-natives-syntax /home/runner/work/v8-d8-114/v8-d8-114/dbg/expC-plain.js > /tmp/plain.txt 2>&1 || true
+          cat /tmp/plain.txt | head -30
+          echo '=== gdb run ==='
+          sudo apt-get -qq update && sudo apt-get -qq install -y gdb
+          gdb --batch -ex 'handle SIGSEGV stop nopass' \
+              -ex 'run --random-seed=1 --allow-natives-syntax /home/runner/work/v8-d8-114/v8-d8-114/dbg/expC-plain.js' \
+              -ex 'bt 8' \
+              -ex 'x/10i $pc-20' \
+              -ex 'p/x $rcx' -ex 'p/x $rax' -ex 'p/x $r14' \
+              --args ./out.gn/x64.release/d8 2>&1 | grep -E '^#|=>|^\$|SIGSEGV' | head -30 || true
       - uses: actions/upload-artifact@v4
         with:
           name: d8-114-op
